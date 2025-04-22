@@ -70,8 +70,14 @@ def detect_blue_edges(hsv):
 
 def detect_red_pix(hsv):
     '''
-    
+    Inputs: 
+        - hsv: a frame converted into a hue, saturation, value color space
+    Outputs:
+        - a boolean indicating whether or not the camera detects 'bound' 
+          number of red pixels
+    Effects: gives us if we are close enough to a red stop sign
     '''
+    bound = 30
     lower_red1 = np.array([  0, 40, 60], dtype="uint8")
     upper_red1 = np.array([ 10, 80, 100], dtype="uint8")
     lower_red2 = np.array([170, 40, 60], dtype="uint8")
@@ -82,7 +88,7 @@ def detect_red_pix(hsv):
 
     # Counts the number of 'red' pixels
     num_red_px = cv2.countNonZero(mask)
-    if(num_red_px >= 30):
+    if(num_red_px >= bound):
         return True
     else:
         return False
