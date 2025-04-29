@@ -28,6 +28,7 @@ def start_video():
     video = cv2.VideoCapture(0)
     video.set(cv2.CAP_PROP_FRAME_WIDTH,320) 
     video.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
+    return video
 
 def look_at_video(video):
     '''
@@ -238,7 +239,6 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
 
     return heading_image
 
-
 def GPIO_setup():
     """
     Effects: Sets up the GPIO pins specified at the top of the file
@@ -284,3 +284,4 @@ def set_speed(pwm, speed_percent):
     cycle = (speed_percent/10) +7.5
     pwm.ChangeDutyCycle(cycle)
 
+start_video()
