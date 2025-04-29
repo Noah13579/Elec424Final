@@ -284,4 +284,25 @@ def set_speed(pwm, speed_percent):
     cycle = (speed_percent/10) +7.5
     pwm.ChangeDutyCycle(cycle)
 
-start_video()
+lastTime = 0 
+lastError = 0
+
+# PD constants
+Kp = 0.4
+Kd = Kp * 0.65
+
+video = start_video()
+while True:
+    frame = look_at_video()
+    hsv = convert_to_HSV(frame)
+    edges = detect_blue_edges(hsv)
+    roi = region_of_interest(edges)
+    line_segments = detect_line_segments(roi)
+    lane_lines = average_slope_intercept(frame,line_segments)
+    lane_lines_image = display_lines(frame,lane_lines)
+    steering_angle = get_steering_angle(frame, lane_lines)
+    heading_image = display_heading_line(lane_lines_image,steering_angle)
+
+    key = cv2.waitKey(1)
+    if key == 27:
+        break
