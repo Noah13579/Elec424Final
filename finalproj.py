@@ -9,11 +9,6 @@ The following function is inspired by:
     Instructables. URL: https://www.instructables.com/Autonomous-Lane-Keeping-Car-Using-Raspberry-Pi-and/
 '''
 
-SPEED_PIN = 18
-STEERING_PIN = 19
-
-freq = 50
-
 def start_video():
     '''
     - Inputs: None
