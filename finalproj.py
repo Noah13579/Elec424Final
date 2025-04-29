@@ -217,7 +217,7 @@ def get_steering_angle(frame, lane_lines):
 
      return steering_angle
 
-def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_width=5 )
+def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_width=5 ):
 
     heading_image = np.zeros_like(frame)
     height, width, _ = frame.shape
