@@ -246,6 +246,7 @@ def GPIO_setup():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(SPEED_PIN, GPIO.OUT)
     GPIO.setup(STEERING_PIN, GPIO.OUT)
+    GPIO.setup(IN_PIN, GPIO.IN)
 
 def calibrate_esc(pwm):
     """
@@ -284,14 +285,32 @@ def set_speed(pwm, speed_percent):
     cycle = (speed_percent/10) +7.5
     pwm.ChangeDutyCycle(cycle)
 
+SPEED_PIN = 20
+STEERING_PIN = 21
+IN_PIN = 16
+
+freq = 50
+
 lastTime = 0 
 lastError = 0
 
+speed = 10
+
 # PD constants
-Kp = 0.4
-Kd = Kp * 0.65
+kp = 0.4
+kd = kp * 0.65
 
 video = start_video()
+
+GPIO_setup()
+calibrate_esc()
+
+pwm_speed = GPIO.PWM(SPEED_PIN, freq)
+pwm_steer = GPIO.PWM(STEERING_PIN, freq)
+
+pwm_speed.start(7.5)
+pwm_steer.start(7.5)
+
 while True:
     frame = look_at_video()
     hsv = convert_to_HSV(frame)
@@ -306,3 +325,32 @@ while True:
     key = cv2.waitKey(1)
     if key == 27:
         break
+
+    now = time.time() # current time variable
+    dt = now - lastTime
+    deviation = steering_angle - 45 # equivalent to angle_to_mid_deg variable
+    error = abs(deviation) 
+
+    if deviation < 5 and deviation > -5: # do not steer if there is a 10-degree error range
+        deviation = 0
+        error = 0
+        set_servo_angle(pwm=pwm_steer, angle=90)
+
+    elif deviation > 5: # steer right if the deviation is positive
+        set_servo_angle(pwm=pwm_steer, angle=110)
+
+    elif deviation < -5: # steer left if deviation is negative
+        set_servo_angle(pwm=pwm_steer, angle=70)
+
+    derivative = kd * (error - lastError) / dt 
+    proportional = kp * error
+    PD = int(speed + derivative + proportional)
+
+    spd = abs(PD)
+    if spd > 25:
+       spd = 25
+
+    set_speed(pwm=pwm_speed, speed_percent=spd)
+
+    lastError = error
+    lastTime = time.time()
