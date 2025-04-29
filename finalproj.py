@@ -349,3 +349,7 @@ while True:
 
     lastError = error
     lastTime = time.time()
+    if (detect_red_pix(hsv)):
+        break
+video.release()
+cv2.destroyAllWindows()
