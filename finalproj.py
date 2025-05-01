@@ -8,7 +8,6 @@ The following function is inspired by:
     User raja_961, "Autonomous Lane-Keeping Car Using Raspberry Pi and OpenCV". 
     Instructables. URL: https://www.instructables.com/Autonomous-Lane-Keeping-Car-Using-Raspberry-Pi-and/
 '''
-
 def start_video():
     '''
     - Inputs: None
@@ -20,7 +19,7 @@ def start_video():
     - Notes: The website recommends we lower the reolution if we want to 
              increase the frame rate so if it is slow, change the function
     '''
-    video = cv2.VideoCapture(0)
+    video = cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)
     video.set(cv2.CAP_PROP_FRAME_WIDTH,320) 
     video.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
     return video
@@ -36,10 +35,8 @@ def look_at_video(video):
             - retrieves a frame of video for us to process
               also returns an error if video capture has failed
     '''
-    if(~video.isOpened()):
-        video.open()
     ret, frame = video.read()
-    if(~ret):
+    if(ret):
         print("Video capture failed")
     return frame
 
@@ -241,7 +238,6 @@ def GPIO_setup():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(SPEED_PIN, GPIO.OUT)
     GPIO.setup(STEERING_PIN, GPIO.OUT)
-    GPIO.setup(IN_PIN, GPIO.IN)
 
 def calibrate_esc(pwm):
     """
@@ -277,13 +273,14 @@ def set_speed(pwm, speed_percent):
         - speed_percent: an number between 0-100 representing the percent of max speed we go
     to be calibrated after seeing the car move
     """
-    cycle = (speed_percent/10) +7.5
+    cycle = (speed_percent/70) +7.5
     pwm.ChangeDutyCycle(cycle)
 
+#Pin definitions
 SPEED_PIN = 20
 STEERING_PIN = 21
-IN_PIN = 16
 
+#PWM freq
 freq = 50
 
 lastTime = 0 
@@ -298,16 +295,24 @@ kd = kp * 0.65
 video = start_video()
 
 GPIO_setup()
-calibrate_esc()
 
 pwm_speed = GPIO.PWM(SPEED_PIN, freq)
 pwm_steer = GPIO.PWM(STEERING_PIN, freq)
 
 pwm_speed.start(7.5)
 pwm_steer.start(7.5)
+calibrate_esc(pwm_speed)
+
+#Initial Start on seeing red box
+frame = look_at_video(video)
+hsv = convert_to_HSV(frame)
+while(not detect_red_pix(hsv)):
+    pass
+#Saves the time we started at
+start_time = time.time()
 
 while True:
-    frame = look_at_video()
+    frame = look_at_video(video)
     hsv = convert_to_HSV(frame)
     edges = detect_blue_edges(hsv)
     roi = region_of_interest(edges)
@@ -349,7 +354,8 @@ while True:
 
     lastError = error
     lastTime = time.time()
-    if (detect_red_pix(hsv)):
+    #Stops the car if we see the second stop sign
+    if ((detect_red_pix(hsv)) and (time.time() - start_time > 5)):
         break
 video.release()
 cv2.destroyAllWindows()
