@@ -23,8 +23,8 @@ def start_video():
              increase the frame rate so if it is slow, change the function
     '''
     video = cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)
-    video.set(cv2.CAP_PROP_FRAME_WIDTH,320) 
-    video.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
+    video.set(cv2.CAP_PROP_FRAME_WIDTH,160) 
+    video.set(cv2.CAP_PROP_FRAME_HEIGHT,120)
     return video
 
 def look_at_video(video):
@@ -179,6 +179,7 @@ def average_slope_intercept(frame, line_segments):
     # for example: lane_lines = [[x1,y1,x2,y2],[x1,y1,x2,y2]]
     # where the left array is for left lane and the right array is for right lane 
     # all coordinate points are in pixels
+    #print(slope)
     return lane_lines
 
 def display_lines(frame, lines, line_color=(0, 255, 0), line_width=6): # line color (B,G,R)
@@ -290,10 +291,12 @@ lastTime = 0
 lastError = 0
 
 speed = 10
+ctr = 0;
+initial_deviation = 0;
 
 # PD constants
-kp = 0.4
-kd = kp * 0.65
+kp = 0.3
+kd = kp * 0.8
 
 video = start_video()
 
@@ -315,6 +318,7 @@ hsv = convert_to_HSV(frame)
 start_time = time.time()
 
 while True:
+    ctr+=1;
     frame = look_at_video(video)
     hsv = convert_to_HSV(frame)
     edges = detect_blue_edges(hsv)
@@ -325,13 +329,21 @@ while True:
     steering_angle = get_steering_angle(frame, lane_lines)
     heading_image = display_heading_line(lane_lines_image,steering_angle)
 
+    #cv2.imshow('original',frame)
+
     key = cv2.waitKey(1)
     if key == 27:
         break
 
     now = time.time() # current time variable
     dt = now - lastTime
-    deviation = steering_angle - 45 # equivalent to angle_to_mid_deg variable
+    if(ctr == 1):
+        initial_deviation = steering_angle
+        deviation = 0;
+        
+    else:
+        deviation = steering_angle - initial_deviation # equivalent to angle_to_mid_deg variable
+    
     error = abs(deviation) 
 
     if deviation < 5 and deviation > -5: # do not steer if there is a 10-degree error range
@@ -339,11 +351,21 @@ while True:
         error = 0
         set_servo_angle(pwm=pwm_steer, angle=90)
 
-    elif deviation > 5: # steer right if the deviation is positive
-        set_servo_angle(pwm=pwm_steer, angle=70)
 
-    elif deviation < -5: # steer left if deviation is negative
+    elif deviation >= 5 and deviation < 25: # steer right if the deviation is positive
         set_servo_angle(pwm=pwm_steer, angle=110)
+
+    elif deviation >= 25: # steer more right if the deviation is very positive
+        set_servo_angle(pwm=pwm_steer, angle=130)
+
+    elif deviation <= -5 and deviation > -25: # steer left if deviation is negative
+        set_servo_angle(pwm=pwm_steer, angle=70)
+    
+    elif deviation <= -25: # steer more left if deviation is very negative
+        set_servo_angle(pwm=pwm_steer, angle=50)
+
+    print("deviation: ", deviation)
+    print("steering angle: ", steering_angle)
 
     derivative = kd * (error - lastError) / dt 
     proportional = kp * error
