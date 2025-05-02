@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            noah {
+                compatible = "mine";
+                my_input-gpios = <&gpio 16 0 >;
+            };
+        };
+    };
+
+};
