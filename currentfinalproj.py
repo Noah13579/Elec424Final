@@ -62,7 +62,7 @@ def detect_blue_edges(hsv):
         - edges: the pixels of the frame that are deemed to be an edge
     Effects: gives us the edges of blue things in the frame
     '''
-    lower_blue = np.array([90, 120, 0], dtype = "uint8") # lower limit of blue color
+    lower_blue = np.array([90, 50, 0], dtype = "uint8") # lower limit of blue color
     upper_blue = np.array([150, 255, 255], dtype="uint8") # upper limit of blue color
     mask = cv2.inRange(hsv,lower_blue,upper_blue) # this mask will filter out everything but blue
 
@@ -81,10 +81,10 @@ def detect_red_pix(hsv):
     Effects: gives us if we are close enough to a red stop sign
     '''
     bound = 30
-    lower_red1 = np.array([  0, 40, 60], dtype="uint8")
-    upper_red1 = np.array([ 10, 80, 100], dtype="uint8")
-    lower_red2 = np.array([170, 40, 60], dtype="uint8")
-    upper_red2 = np.array([179, 80, 100], dtype="uint8")
+    lower_red1 = np.array([  0, 70, 60], dtype="uint8")
+    upper_red1 = np.array([ 10, 150, 100], dtype="uint8")
+    lower_red2 = np.array([170, 70, 60], dtype="uint8")
+    upper_red2 = np.array([179, 150, 100], dtype="uint8")
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
     mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
     mask = cv2.bitwise_or(mask1, mask2)
@@ -120,6 +120,11 @@ def detect_line_segments(cropped_edges):
     line_segments = cv2.HoughLinesP(cropped_edges, rho, theta, min_threshold, 
                                     np.array([]), minLineLength=5, maxLineGap=0)
     return line_segments
+
+def map_value(value, in_min, in_max, out_min, out_max):
+    # Clamp input to avoid out-of-bound servo values
+    value = max(min(value, in_max), in_min)
+    return out_min + (float(value - in_min) / (in_max - in_min)) * (out_max - out_min)
 
 def make_points(frame, line):
     height, width, _ = frame.shape
@@ -179,7 +184,7 @@ def average_slope_intercept(frame, line_segments):
     # for example: lane_lines = [[x1,y1,x2,y2],[x1,y1,x2,y2]]
     # where the left array is for left lane and the right array is for right lane 
     # all coordinate points are in pixels
-    #print(slope)
+    # print(slope)
     return lane_lines
 
 def display_lines(frame, lines, line_color=(0, 255, 0), line_width=6): # line color (B,G,R)
@@ -266,7 +271,8 @@ def set_servo_angle(angle, pwm):
         - sets the servo to the requested angle
     """
     # Convert angle (0 to 180 degrees) to duty cycle (2.5% to 12.5%)
-    duty_cycle = 2.5 + (angle / 18)
+    #duty_cycle = 2.5 + (angle / 18)
+    duty_cycle = angle
     pwm.ChangeDutyCycle(duty_cycle)
     time.sleep(1)  # Allow time for the servo to reach the position
 
@@ -294,9 +300,10 @@ speed = 10
 ctr = 0;
 initial_deviation = 0;
 
+
 # PD constants
-kp = 0.3
-kd = kp * 0.8
+kp = 0.1
+kd = kp * 0.05
 
 video = start_video()
 
@@ -330,6 +337,17 @@ while True:
     heading_image = display_heading_line(lane_lines_image,steering_angle)
 
     #cv2.imshow('original',frame)
+    # cv2.imwrite("frame.jpg", frame)
+    # cv2.imwrite("hsv.jpg", hsv)
+    cv2.imwrite("edges.jpg", edges)
+    cv2.imwrite("roi.jpg", roi)
+    # cv2.imwrite("line_segments.jpg", line_segments)
+    # cv2.imwrite("lane_lines.jpg", lane_lines)
+    # cv2.imwrite("lane_lines_image.jpg", lane_lines_image)
+    # cv2.imwrite("steering_angle.jpg", steering_angle)
+    cv2.imwrite("heading_image.jpg", heading_image)
+    print("images saved!")
+
 
     key = cv2.waitKey(1)
     if key == 27:
@@ -337,46 +355,35 @@ while True:
 
     now = time.time() # current time variable
     dt = now - lastTime
-    if(ctr == 1):
-        initial_deviation = steering_angle
-        deviation = 0;
-        
-    else:
-        deviation = steering_angle - initial_deviation # equivalent to angle_to_mid_deg variable
-    
+    deviation = steering_angle - 90 # equivalent to angle_to_mid_deg variable
     error = abs(deviation) 
 
-    if deviation < 5 and deviation > -5: # do not steer if there is a 10-degree error range
-        deviation = 0
-        error = 0
-        set_servo_angle(pwm=pwm_steer, angle=90)
-
-
-    elif deviation >= 5 and deviation < 25: # steer right if the deviation is positive
-        set_servo_angle(pwm=pwm_steer, angle=110)
-
-    elif deviation >= 25: # steer more right if the deviation is very positive
-        set_servo_angle(pwm=pwm_steer, angle=130)
-
-    elif deviation <= -5 and deviation > -25: # steer left if deviation is negative
-        set_servo_angle(pwm=pwm_steer, angle=70)
-    
-    elif deviation <= -25: # steer more left if deviation is very negative
-        set_servo_angle(pwm=pwm_steer, angle=50)
+  #  if deviation < 5 and deviation > -5: # do not steer if there is a 10-degree error range
+        #deviation = 0
+        #error = 0
+        #set_servo_angle(pwm=pwm_steer, angle=90)
 
     print("deviation: ", deviation)
     print("steering angle: ", steering_angle)
 
+    base_turn = 0
     derivative = kd * (error - lastError) / dt 
     proportional = kp * error
     PD = int(speed + derivative + proportional)
+    turn_amt =  base_turn + proportional + derivative
 
-    spd = abs(PD)
-    if spd > 25:
-       spd = 25
+    turn_amt_mapped = map_value(
+        turn_amt,
+        in_min=-2.0,                        # raw minimum
+        in_max=2.0,                         # raw maximum
+        out_min=9,          # servo left
+        out_max=6           # servo right
+    )
+    print("turn ", turn_amt_mapped)
 
-    set_speed(pwm=pwm_speed, speed_percent=spd)
-
+    set_servo_angle(pwm=pwm_steer, angle=turn_amt_mapped)
+    set_speed(pwm=pwm_speed, speed_percent=15)
+   
     lastError = error
     lastTime = time.time()
     #Stops the car if we see the second stop sign
