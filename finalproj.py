@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 
 '''
-The following function is inspired by:
+The following code is inspired by:
 User raja_961, "Autonomous Lane-Keeping Car Using Raspberry Pi and OpenCV".
 Instructables. URL: https://www.instructables.com/Autonomous-Lane-Keeping-Car-Using-Raspberry-Pi-and/
 '''
@@ -42,7 +42,6 @@ min_speed = 900000000
 
 # Servo and Motor Functions
 
-
 def GPIO_setup():
     '''
     Effects: Sets up the GPIO pins specified at the top of the file
@@ -50,7 +49,6 @@ def GPIO_setup():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(SPEED_PIN, GPIO.OUT)
     GPIO.setup(STEERING_PIN, GPIO.OUT)
-
 
 def calibrate_esc(pwm):
     '''
@@ -66,7 +64,6 @@ def calibrate_esc(pwm):
     pwm.ChangeDutyCycle(7.5)
     time.sleep(2)
 
-
 def set_servo_angle(angle, pwm):
     '''
     Input:
@@ -80,20 +77,17 @@ def set_servo_angle(angle, pwm):
     pwm.ChangeDutyCycle(duty_cycle)
     time.sleep(1)  # Allow time for the servo to reach the position
 
-
 def set_speed(pwm, speed_percent):
     '''
     Input:
         - pwm: a pwm object created by the GPIO library should be the speed pin's pwm
         - speed_percent: an number between 0-100 representing the percent of max speed we go
-    to be calibrated after seeing the car move
+          to be calibrated after seeing the car move
     '''
     cycle = (speed_percent/75) + 7.5
     pwm.ChangeDutyCycle(cycle)
 
-
 # Computer Vision Functions
-
 
 def start_video():
     '''
@@ -111,7 +105,6 @@ def start_video():
     video.set(cv2.CAP_PROP_FRAME_HEIGHT,frame_length)
     return video
 
-
 def look_at_video(video):
     '''
     - Inputs:
@@ -126,7 +119,6 @@ def look_at_video(video):
     ret, frame = video.read()
     return frame
 
-
 def convert_to_HSV(frame):
     '''
     Inputs:
@@ -137,7 +129,6 @@ def convert_to_HSV(frame):
     Effects: allows the computer to 'see' color
     '''
     return cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
 
 def detect_blue_edges(hsv):
     '''
@@ -155,7 +146,6 @@ def detect_blue_edges(hsv):
     edges = cv2.Canny(mask, 50, 100)
     cv2.imshow("edges",edges)
     return edges
-
 
 def detect_red_pix(hsv):
     '''
@@ -185,7 +175,6 @@ def detect_red_pix(hsv):
     else:
         return False
 
-
 def region_of_interest(edges):
     height, width = edges.shape # extract the height and width of the edges frame
     mask = np.zeros_like(edges) # make an empty matrix with same dimensions of the edges frame
@@ -205,7 +194,6 @@ def region_of_interest(edges):
     cropped_edges = cv2.bitwise_and(edges, mask)
     return cropped_edges
 
-
 def detect_line_segments(cropped_edges):
     rho = 1
     theta = np.pi / 180
@@ -213,7 +201,6 @@ def detect_line_segments(cropped_edges):
     line_segments = cv2.HoughLinesP(cropped_edges, rho, theta, min_threshold,
                                     np.array([]), minLineLength=5, maxLineGap=0)
     return line_segments
-
 
 def make_points(frame, line):
     height, width, _ = frame.shape
@@ -231,7 +218,6 @@ def make_points(frame, line):
 
 
     return [[x1, y1, x2, y2]]
-
 
 def average_slope_intercept(frame, line_segments):
     lane_lines = []
@@ -289,7 +275,6 @@ def average_slope_intercept(frame, line_segments):
     # print(slope)
     return lane_lines
 
-
 def display_lines(frame, lines, line_color=(0, 255, 0), line_width=6): # line color (B,G,R)
     line_image = np.zeros_like(frame)
 
@@ -302,7 +287,6 @@ def display_lines(frame, lines, line_color=(0, 255, 0), line_width=6): # line co
 
     line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
     return line_image
-
 
 def get_steering_angle(frame, lane_lines):
     height, width, _ = frame.shape
@@ -334,7 +318,6 @@ def get_steering_angle(frame, lane_lines):
 
     return steering_angle
 
-
 def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_width=5 ):
     heading_image = np.zeros_like(frame)
     height, width, _ = frame.shape
@@ -355,8 +338,12 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
 
     return heading_image
 
-
 def get_speed_change():
+    '''
+    Inputs: none
+    Outputs:
+        - speed_change: a number representing the suggestion on how speed should be changed
+    '''
     interval_str = open(interval_loc, "r")
     interval = int(interval_str.readline())
     interval_str.close()
@@ -412,76 +399,84 @@ video = start_video()
 
 
 try:
-while True:
-    frame = look_at_video(video)
-    hsv = convert_to_HSV(frame)
-    edges = detect_blue_edges(hsv)
-    roi = region_of_interest(edges)
-    line_segments = detect_line_segments(roi)
-    lane_lines = average_slope_intercept(frame,line_segments)
-    lane_lines_image = display_lines(frame,lane_lines)
-    steering_angle = get_steering_angle(frame, lane_lines)
-    heading_image = display_heading_line(lane_lines_image,steering_angle)
+    while True:
+        # Processes the video output to learn about the surroundings
+        frame = look_at_video(video)
+        hsv = convert_to_HSV(frame)
+        edges = detect_blue_edges(hsv)
+        roi = region_of_interest(edges)
+        line_segments = detect_line_segments(roi)
+        lane_lines = average_slope_intercept(frame,line_segments)
+        lane_lines_image = display_lines(frame,lane_lines)
+        steering_angle = get_steering_angle(frame, lane_lines)
+        heading_image = display_heading_line(lane_lines_image,steering_angle)
 
-    cv2.imwrite("hsv.jpg", hsv)
-    cv2.imwrite("edges.jpg", edges)
-    cv2.imwrite("roi.jpg", roi)
-    cv2.imwrite("heading_image.jpg", heading_image)
-    print("images saved!")
+        # Saves our image for debugging
+        cv2.imwrite("hsv.jpg", hsv)
+        cv2.imwrite("edges.jpg", edges)
+        cv2.imwrite("roi.jpg", roi)
+        cv2.imwrite("heading_image.jpg", heading_image)
+        print("images saved!")
 
-
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
-    
-    now = time.time() # current time variable
-    dt = now - lastTime
-    deviation = steering_angle - 90
-
-
-    error = deviation
-    base_turn = 0
-    proportional = kp * error
-    derivative = kd * (error - lastError)/dt
-
-
-    turn = base_turn + proportional + derivative + 7.5
-    if (turn < 0):
-        turn = 0
-    print("turn: ", turn)
-    print("derivative: ", derivative)
-    errors.append(error)
-    derivatives.append(derivative)
-    proportions.append(proportional)
-    turns.append(turn)
-    speeds.append(current)
-    frames.append(ctr)
-    ctr+=1
-
-    pwm_steer.ChangeDutyCycle(turn)
-
-
-    if ((ctr % 10) == 0):
-        if(detect_red_pix(hsv) and ((time.time() - start_time) > 10)):
-        if(seen_stop):
+        #  Ends the loop on keyboard  interrupt
+        key = cv2.waitKey(1)
+        if key == 27:
             break
-        else:
-            pwm_speed.ChangeDutyCycle(7.5)
-            time.sleep(3)
-            seen_stop = 1
-            start_time = time.time()
+        
+        #  variables for PD calculation
+        now = time.time() # current time variable
+        dt = now - lastTime
+        deviation = steering_angle - 90
 
+        # PD calculation
+        error = deviation
+        base_turn = 7.5
+        proportional = kp * error
+        derivative = kd * (error - lastError)/dt
 
-    if ((ctr % 2) == 0):
-        new_speed = current + get_speed_change()
-        if (new_speed < 7.72):
-            new_speed = 7.72
-        pwm_speed.ChangeDutyCycle(new_speed)
-        current = new_speed
-        time.sleep(0.025)
+        # Gets the new turn angle, ensures non-negative
+        turn = base_turn + proportional + derivative
+        if (turn < 0):
+            turn = 0
+        print("turn: ", turn)
+        print("derivative: ", derivative)
+
+        # Updates all the values for plotting
+        errors.append(error)
+        derivatives.append(derivative)
+        proportions.append(proportional)
+        turns.append(turn)
+        speeds.append(current)
+        frames.append(ctr)
+        ctr+=1
+
+        # The steering angle is chaned
+        pwm_steer.ChangeDutyCycle(turn)
+
+        # Every 10 frames we check to see if there is a stop sign
+        if ((ctr % 10) == 0):
+            # If we see the first stop sign, we wait a while before checking for the next
+            if(detect_red_pix(hsv) and ((time.time() - start_time) > 10)):
+                if(seen_stop):
+                    break
+                else:
+                    pwm_speed.ChangeDutyCycle(7.5)
+                    time.sleep(3)
+                    seen_stop = 1
+                    start_time = time.time()
+
+        #  Every two frames we update what our speed should be with a minimum duty cycle of 7.72
+        if ((ctr % 2) == 0):
+            new_speed = current + get_speed_change()
+            if (new_speed < 7.72):
+                new_speed = 7.72
+            pwm_speed.ChangeDutyCycle(new_speed)
+            current = new_speed
+            time.sleep(0.025)
 
 
 finally:
+    # Stops all video recording
     video.release()
     cv2.destroyAllWindows()
     # First figure
