@@ -5,7 +5,7 @@ import time
 import math
 import os
 '''
-The following function is inspired by:
+The following code was inspired by:
     User raja_961, "Autonomous Lane-Keeping Car Using Raspberry Pi and OpenCV". 
     Instructables. URL: https://www.instructables.com/Autonomous-Lane-Keeping-Car-Using-Raspberry-Pi-and/
 '''
@@ -18,7 +18,7 @@ def start_video():
             - video: a cv2 video object, can be thought of as 
               just the video captured from the camera at index 0
     - Effects: Allows us to start collecting video from the default camera 
-             at 320x240 resolution
+             at 160x120 resolution
     - Notes: The website recommends we lower the reolution if we want to 
              increase the frame rate so if it is slow, change the function
     '''
